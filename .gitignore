@@ -177,3 +177,4 @@ chat-logs
 
 data/
 models/
+!/*.pkl

@@ -1,8 +1,15 @@
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from sklearn.model_selection import cross_val_score, StratifiedKFold, train_test_split
+from sklearn.metrics import (
+    accuracy_score, classification_report, confusion_matrix,
+    precision_score, recall_score, f1_score, roc_auc_score,
+    make_scorer
+)
+from sklearn.model_selection import (
+    cross_val_score, StratifiedKFold, train_test_split,
+    cross_validate, KFold
+)
 import xgboost as xgb
 import lightgbm as lgb
 import optuna
@@ -10,16 +17,42 @@ import joblib
 import os
 from datetime import datetime
 import json
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Union
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class ModelTrainer:
-    def __init__(self, models_dir='models', n_splits=5):
+    def __init__(self, models_dir='models', n_splits=5, cv_strategy='stratified'):
+        """
+        モデルトレーナーの初期化
+        
+        Args:
+            models_dir (str): モデル保存ディレクトリ
+            n_splits (int): 交差検証の分割数
+            cv_strategy (str): 交差検証の戦略 ('stratified' or 'kfold')
+        """
         self.models_dir = models_dir
         self.models = {}
         self.best_model = None
         self.best_score = 0
         self.n_splits = n_splits
-        self.cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+        self.cv_strategy = cv_strategy
+        
+        # 交差検証の設定
+        if cv_strategy == 'stratified':
+            self.cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+        else:
+            self.cv = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+        
+        # 評価指標の設定
+        self.scoring = {
+            'accuracy': 'accuracy',
+            'precision': 'precision_weighted',
+            'recall': 'recall_weighted',
+            'f1': 'f1_weighted',
+            'roc_auc': 'roc_auc_ovr'  # 多クラス分類用
+        }
+        
         os.makedirs(models_dir, exist_ok=True)
         
     def train_random_forest(self, X_train, y_train, X_test, y_test, params=None):
@@ -241,48 +274,157 @@ class ModelTrainer:
         
         return ensemble, test_score, cv_scores
 
-    def train_all_models(self, X_train, y_train, X_test, y_test, optimize=False):
-        """全てのモデルを学習し、アンサンブルも作成"""
-        best_params = {}
-        rf_model, rf_score = self.train_random_forest(X_train, y_train, X_test, y_test)
-        xgb_model, xgb_score = self.train_xgboost(X_train, y_train, X_test, y_test)
-        lgb_model, lgb_score = self.train_lightgbm(X_train, y_train, X_test, y_test)
+    def cross_validate_model(self, model, X: pd.DataFrame, y: pd.Series) -> Dict[str, Any]:
+        """
+        モデルの交差検証を実行
         
-        if optimize:
-            print("\nOptimizing hyperparameters for all models...")
-            for model_name in ['random_forest', 'xgboost', 'lightgbm']:
-                print(f"\nOptimizing {model_name}...")
+        Args:
+            model: 学習済みモデル
+            X (pd.DataFrame): 特徴量
+            y (pd.Series): ラベル
+            
+        Returns:
+            Dict[str, Any]: 交差検証の結果
+        """
+        try:
+            # 交差検証の実行
+            cv_results = cross_validate(
+                model, X, y,
+                cv=self.cv,
+                scoring=self.scoring,
+                return_train_score=True,
+                n_jobs=-1
+            )
+            
+            # 結果の集計
+            results = {}
+            for metric in self.scoring.keys():
+                train_scores = cv_results[f'train_{metric}']
+                test_scores = cv_results[f'test_{metric}']
+                
+                results[metric] = {
+                    'train_mean': np.mean(train_scores),
+                    'train_std': np.std(train_scores),
+                    'test_mean': np.mean(test_scores),
+                    'test_std': np.std(test_scores),
+                    'scores': test_scores.tolist()
+                }
+            
+            # 学習曲線のプロット
+            self._plot_learning_curves(model, X, y, results)
+            
+            return results
+            
+        except Exception as e:
+            print(f"Error during cross-validation: {str(e)}")
+            return None
+
+    def _plot_learning_curves(self, model, X: pd.DataFrame, y: pd.Series, cv_results: Dict[str, Any]):
+        """
+        学習曲線のプロット
+        
+        Args:
+            model: 学習済みモデル
+            X (pd.DataFrame): 特徴量
+            y (pd.Series): ラベル
+            cv_results (Dict[str, Any]): 交差検証の結果
+        """
+        plt.figure(figsize=(15, 10))
+        
+        # 各評価指標の学習曲線をプロット
+        for i, (metric, scores) in enumerate(cv_results.items(), 1):
+            plt.subplot(2, 3, i)
+            
+            train_mean = scores['train_mean']
+            train_std = scores['train_std']
+            test_mean = scores['test_mean']
+            test_std = scores['test_std']
+            
+            x = np.arange(1, self.n_splits + 1)
+            
+            plt.plot(x, scores['scores'], 'o-', label='Test Score')
+            plt.fill_between(x,
+                           test_mean - test_std,
+                           test_mean + test_std,
+                           alpha=0.1)
+            
+            plt.axhline(y=train_mean, color='r', linestyle='--', label='Train Mean')
+            plt.fill_between(x,
+                           train_mean - train_std,
+                           train_mean + train_std,
+                           alpha=0.1)
+            
+            plt.title(f'{metric.capitalize()} Learning Curve')
+            plt.xlabel('Fold')
+            plt.ylabel('Score')
+            plt.legend()
+            plt.grid(True)
+        
+        plt.tight_layout()
+        
+        # 学習曲線の保存
+        save_path = os.path.join(self.models_dir, 'learning_curves.png')
+        plt.savefig(save_path)
+        plt.close()
+
+    def train_all_models(self, X_train, y_train, X_test, y_test, optimize=False):
+        """全てのモデルを学習し、アンサンブルも作成（交差検証対応）"""
+        best_params = {}
+        cv_results = {}
+        
+        # 各モデルの学習と交差検証
+        for model_name, train_func in [
+            ('random_forest', self.train_random_forest),
+            ('xgboost', self.train_xgboost),
+            ('lightgbm', self.train_lightgbm)
+        ]:
+            print(f"\nTraining {model_name}...")
+            
+            if optimize:
+                print(f"Optimizing {model_name}...")
                 model_params = self.optimize_hyperparameters(
                     X_train, y_train, X_test, y_test,
                     model_name=model_name
                 )
                 best_params[model_name] = model_params
-                print(f"Best parameters for {model_name}:", model_params)
-                
-                if model_name == 'random_forest':
-                    self.train_random_forest(X_train, y_train, X_test, y_test, model_params)
-                elif model_name == 'xgboost':
-                    self.train_xgboost(X_train, y_train, X_test, y_test, model_params)
-                elif model_name == 'lightgbm':
-                    self.train_lightgbm(X_train, y_train, X_test, y_test, model_params)
+                model, _ = train_func(X_train, y_train, X_test, y_test, model_params)
+            else:
+                model, _ = train_func(X_train, y_train, X_test, y_test)
+            
+            # 交差検証の実行
+            print(f"Performing cross-validation for {model_name}...")
+            cv_result = self.cross_validate_model(model, X_train, y_train)
+            cv_results[model_name] = cv_result
+            
+            # モデルの保存
+            self.models[model_name] = {
+                'model': model,
+                'cv_results': cv_result
+            }
         
+        # アンサンブルモデルの作成
         print("\nCreating ensemble model...")
-        ensemble, ensemble_score, cv_scores = self.create_ensemble(X_train, y_train, X_test, y_test)
+        ensemble, ensemble_score, _ = self.create_ensemble(X_train, y_train, X_test, y_test)
         
-        scores = {
-            'random_forest': self.models['random_forest']['score'],
-            'xgboost': self.models['xgboost']['score'],
-            'lightgbm': self.models['lightgbm']['score'],
-            'ensemble': ensemble_score,
-            'ensemble_cv_mean': cv_scores.mean(),
-            'ensemble_cv_std': cv_scores.std()
+        # アンサンブルモデルの交差検証
+        ensemble_cv_result = self.cross_validate_model(ensemble, X_train, y_train)
+        cv_results['ensemble'] = ensemble_cv_result
+        
+        self.models['ensemble'] = {
+            'model': ensemble,
+            'score': ensemble_score,
+            'cv_results': ensemble_cv_result
         }
         
-        best_model_name = max(scores, key=lambda x: scores[x] if x != 'ensemble_cv_std' else 0)
+        # 最良モデルの選択（交差検証の結果に基づく）
+        best_model_name = max(
+            cv_results.keys(),
+            key=lambda x: cv_results[x]['accuracy']['test_mean']
+        )
         self.best_model = self.models[best_model_name]['model']
-        self.best_score = scores[best_model_name]
+        self.best_score = cv_results[best_model_name]['accuracy']['test_mean']
         
-        return scores, best_params
+        return cv_results, best_params
     
     def save_models(self):
         """モデルとメタデータの保存"""

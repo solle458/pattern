@@ -16,6 +16,14 @@ down:
 train:
 	docker compose run --rm api python src/model/train.py
 
+# データの分析
+analyze:
+	docker compose run --rm api python src/preprocess/data_analysis.py
+
+# データの拡張
+extend:
+	docker compose run --rm api python src/preprocessing/generate_augmented_data.py
+
 # APIサーバーのログ表示
 logs:
 	docker compose logs -f api
