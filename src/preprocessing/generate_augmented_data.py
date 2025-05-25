@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 def generate_augmented_data(
     input_path='data/train.csv',
     output_path='data/train_augmented.csv',
-    n_noise_samples=500,  # ノイズ付加で生成するサンプル数
-    n_autoencoder_samples=500,  # Autoencoderで生成するサンプル数
+    n_noise_samples=1500,  # ノイズ付加で生成するサンプル数
+    n_autoencoder_samples=1500,  # Autoencoderで生成するサンプル数
     noise_level=0.05,
     autoencoder_epochs=50
 ):

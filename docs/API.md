@@ -96,7 +96,7 @@ Content-Type: application/json
 
 ### cURL
 ```bash
-curl -X POST https://your-app-name.onrender.com/predict \
+curl -X POST https://localhost:5001/predict \
   -H "Content-Type: application/json" \
   -d '[
     {
