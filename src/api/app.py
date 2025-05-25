@@ -20,8 +20,10 @@ def create_app():
     app = Flask(__name__)
 
     # モデルの読み込み
-    model_name = os.getenv('MODEL_NAME', 'model_augmented.pkl')  # デフォルト値を設定
-    model_path = Path(__file__).parent.parent.parent / 'models' / model_name
+    model_name = os.getenv('MODEL_NAME', 'model_augmented.pkl')
+    # モデルのパスを環境変数から取得、なければデフォルトパスを使用
+    base_model_path = os.getenv('MODEL_BASE_PATH', str(Path(__file__).parent.parent.parent))
+    model_path = Path(base_model_path) / 'models' / model_name
     logger.info(f"Loading model from: {model_path}")
     try:
         loaded_data = joblib.load(model_path)
@@ -46,11 +48,8 @@ def create_app():
 
     return app
 
-def run_app():
-    """アプリケーションの実行"""
-    app = create_app()
-    return app
+# グローバルなappインスタンスを作成
+app = create_app()
 
 if __name__ == '__main__':
-    app = run_app()
-    app.run(host='0.0.0.0', port=5001, debug=True) 
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)), debug=False) 
