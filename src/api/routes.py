@@ -27,11 +27,13 @@ def register_routes(app):
             
             # 入力データのバリデーション
             validated_data = [validate_predict_input(item) for item in data]
+            logger.info("Validation ok")
             
             # モデルが読み込まれていない場合のエラー
             if app.model is None:
                 raise RuntimeError("Model is not loaded")
             
+            logger.info("loading Model ok")
             # 予測の実行
             predictions = []
             for item in validated_data:
@@ -45,9 +47,13 @@ def register_routes(app):
                     item['param6']
                 ]])
                 
+                logger.info(features)
+                
                 # 予測の実行
                 predicted_class = app.model.predict(features)[0]
                 probabilities = app.model.predict_proba(features)[0]
+                
+                logger.info("prediction ok")
                 
                 # クラス名と確率のマッピング
                 class_names = app.model.classes_
