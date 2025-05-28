@@ -20,10 +20,6 @@ train:
 analyze:
 	docker compose run --rm api python src/preprocess/data_analysis.py
 
-# データの拡張
-extend:
-	docker compose run --rm api python src/preprocessing/generate_augmented_data.py
-
 # APIサーバーのログ表示
 logs:
 	docker compose logs -f api
@@ -31,3 +27,7 @@ logs:
 # テスト実行（pytest）
 test:
 	docker compose run --rm api pytest 
+
+# データ拡張の実行
+augment-data:
+	docker compose run --rm api bash -c "PYTHONPATH=.:$$PYTHONPATH python src/preprocessing/generate_augmented_data.py"

@@ -12,6 +12,6 @@ services:
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
-      - MODEL_NAME=model_augmented.pkl
+      - MODEL_NAME=LogisticRegression_multinomial.pkl
     command: flask run --host=0.0.0.0 --port=5000
     restart: unless-stopped 

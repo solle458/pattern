@@ -20,7 +20,7 @@ def create_app():
     app = Flask(__name__)
 
     # モデルの読み込み
-    model_name = os.getenv('MODEL_NAME', 'model_augmented.pkl')
+    model_name = os.getenv('MODEL_NAME', 'model.pkl')
     # モデルのパスを環境変数から取得、なければデフォルトパスを使用
     base_model_path = os.getenv('MODEL_BASE_PATH', str(Path(__file__).parent.parent.parent))
     model_path = Path(base_model_path) / 'models' / model_name

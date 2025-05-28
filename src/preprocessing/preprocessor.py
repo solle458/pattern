@@ -12,8 +12,8 @@ class DataPreprocessor:
         self.data_path = data_path
         self.scaler = StandardScaler()
         self.label_encoder = LabelEncoder()
-        self.feature_columns = [0, 1, 2, 3, 4, 5]  # 特徴量の列インデックス（6次元）
-        self.target_column = 6  # ラベルの列インデックス
+        self.feature_columns = ['param1', 'param2', 'param3', 'param4', 'param5', 'param6']  # 特徴量の列インデックス（6次元）
+        self.target_column = 'class'  # ラベルの列インデックス
         self.add_poly_features = add_poly_features
         self.add_interaction_only = add_interaction_only
         self.poly = None
@@ -26,7 +26,7 @@ class DataPreprocessor:
         
     def load_data(self):
         """データの読み込み"""
-        df = pd.read_csv(self.data_path, header=None)
+        df = pd.read_csv(self.data_path, header=0)
         return df
         
     def prepare_data(self, test_size=0.2, random_state=42,

@@ -304,8 +304,8 @@ class ModelTrainer:
                     return -np.inf
             elif model_name == 'xgboost':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 200, 1000),
-                    'max_depth': trial.suggest_int('max_depth', 3, 15),
+                    'n_estimators': trial.suggest_int('n_estimators', 200, 500),
+                    'max_depth': trial.suggest_int('max_depth', 3, 7),
                     'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.3, log=True),
                     'min_child_weight': trial.suggest_int('min_child_weight', 1, 20),
                     'subsample': trial.suggest_float('subsample', 0.6, 1.0),
@@ -320,8 +320,8 @@ class ModelTrainer:
                 model = xgb.XGBClassifier(**params)
             elif model_name == 'random_forest':
                 params = {
-                    'n_estimators': trial.suggest_int('n_estimators', 200, 1000),
-                    'max_depth': trial.suggest_int('max_depth', 3, 20),
+                    'n_estimators': trial.suggest_int('n_estimators', 200, 500),
+                    'max_depth': trial.suggest_int('max_depth', 3, 7),
                     'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
                     'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
                     'max_features': trial.suggest_categorical('max_features', ['sqrt', 'log2', None]),
@@ -385,7 +385,7 @@ class ModelTrainer:
                 }
             elif model_name == 'lightgbm':
                 return {
-                    'n_estimators': 500,
+                    'n_estimators': 300,
                     'max_depth': 3,
                     'learning_rate': 0.05,
                     'num_leaves': 15,       # 2^max_depth以下
@@ -398,8 +398,8 @@ class ModelTrainer:
                 }
             else:  # random_forest
                 return {
-                    'n_estimators': 300,
-                    'max_depth': 15, # デフォルトを少し制限
+                    'n_estimators': 200,
+                    'max_depth': 5, # デフォルトを少し制限
                     'min_samples_split': 2,
                     'min_samples_leaf': 1,
                     'random_state': 42,
