@@ -205,8 +205,8 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(current_dir))
     
-    data_path = os.path.join(project_root, 'data', 'train_augmented.csv')
-    model_save_path = os.path.join(project_root, 'models', 'model_augmented.pkl')
+    data_path = os.path.join(project_root, 'data', 'train.csv')
+    model_save_path = os.path.join(project_root, 'models', 'model.pkl')
     
     # モデルトレーナーのインスタンス化
     trainer = ModelTrainer(data_path, model_save_path)
